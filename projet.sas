@@ -47,12 +47,13 @@ RUN;
 /*macroprogramme*/
 
 %univariate(table=MABIBLIO.data,variables=charges);
-%correlation(table=MABIBLIO.data,variables=age bmi children,charges);
+%correlation(table=MABIBLIO.data,variables=age bmi children charges);
 
 
 
 proc sgscatter data=MABIBLIO.data;
 matrix age bmi children charges / group=sex diagonal=(histogram kernel);
+TITLE "Matrice de scatterplots";
  run;
  
 /*Répresentation pour toutes les entités catégorielles individuellement*/
@@ -150,10 +151,14 @@ RUN ;
 proc corr data=MABIBLIO.data plots=matrix(histogram);
 run;
 
+/*On fixe un generateur aleatoire */
+
+
 /*diviser les données en plusieurs sous-ensembles aléatoires avec une proportion donnée*/
 
-proc surveyselect data=MABIBLIO.DATA out=BIBLIO method=srs samprate=.7 outall noprint;
+proc surveyselect data=MABIBLIO.DATA out=BIBLIO method=srs seed=1953 samprate=.7 outall noprint;
 run; 
+
 /*cette étape crée une nouvelle variable nommée "Sélectionné" qui peut être référencée plus tard*/
 data MABIBLIO.train;
 set BIBLIO;
@@ -170,7 +175,7 @@ run;
 
 /*Regression lineaire multiple suivit d'une selection de variables*/
 
-/*Macro-programme pour la regression lineaire multiple avec variables selectionnées*/
+/*Macro-programme pour la regression lineaire multiple avec toutes les variables*/
 
 %regressionL(table=MABIBLIO.train,variables=age bmi children smoker_Recode sex_Recode region_Recode);
 
@@ -187,7 +192,6 @@ run;
 /*Macro-programme pour la regression lineaire multiple avec variables selectionnées*/
 
 %regressionL(table=MABIBLIO.train,variables=age bmi children smoker_Recode region_Recode);
-	
 /*Model de regression predictif avec valid-set */
 
 proc glmselect data=MABIBLIO.valid plots=(criterionpanel);
