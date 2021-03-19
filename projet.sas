@@ -1,13 +1,25 @@
+/* ------------------------ IMPORTATION DES DONNES---------------------------- */
+/*                       ----------------------                                */
+/*  ****************** RAMDÉ Ismaïl et N'DOYE El Hadrami ********************* */
+/* ___________________________________________________________________________ */
 
-/* importer les données*/
-PROC IMPORT datafile='/home/u53870302/sasuser.v94/insurance.csv' 
+
+
+libname mabiblio '/home/u53870402/sasuser.v94';
+
+
+/* ------------------------ IMPORTATION DES DONNES---------------------------- */
+
+PROC IMPORT datafile='/home/u53870402/sasuser.v94/insurance.csv' 
 out=MABIBLIO.data REPLACE;
 RUN;
+/*............................................................................*/
 
-/*........ definition des macros...... */
 
 
-/* macro pour la statistique univariée */
+/*------------------------- DEFINITION DES MACROS --------------------------- */
+
+/* Macro pour la statistique univariée */
 
 %MACRO univariate(table=,variables=);
 PROC UNIVARIATE DATA = &table.;
@@ -15,26 +27,35 @@ VAR &variables.;
 RUN;
 %MEND univariate;
 
-/* macro pour la correlation */
+/* Macro pour la corrélation */
+
 %MACRO correlation(table=,variables=);
 PROC CORR DATA=&table.;
 	var &variables.;
 RUN;
 %MEND correlation;
 
-/* macro pour la regression */
+/* Macro pour la régression linéaire */
+
 %MACRO regressionL(table=,variables=);
 proc reg data=&table alpha=0.05 plots(only)=(diagnostics residuals 
 		observedbypredicted);
 	    model charges=&variables./;
 RUN;
 %MEND regressionL;
+/*............................................................................*/
 
 
-/* .............statistiques descriptives............*/
+
+/* ------------------------- STATISTIQUES DESCRIPTIVES ---------------------- */
+
+/* Informations sur la data */
+
 Title 'Informations sur le jeux de données';
 PROC CONTENTS DATA=mabiblio.data;
 RUN;
+
+/* Résumé */
 
 Title 'Procedures Moyenne';
 PROC MEANS data=MABIBLIO.data;
@@ -44,20 +65,22 @@ Title 'Procedure Résumé';
 PROC SUMMARY data=MABIBLIO.data print;
 RUN;
 
-/*macroprogramme*/
+/* Macroprogrammes */
 
 %univariate(table=MABIBLIO.data,variables=charges);
 %correlation(table=MABIBLIO.data,variables=age bmi children charges);
 
 
+/* Scatter plots */
 
 proc sgscatter data=MABIBLIO.data;
 matrix age bmi children charges / group=sex diagonal=(histogram kernel);
 TITLE "Matrice de scatterplots";
  run;
  
-/*Répresentation pour toutes les entités catégorielles individuellement*/
+/* -Répresentation pour toutes les entités catégorielles individuellement- */
 
+/* Boite à moustache */
 
 proc sgplot data=MABIBLIO.DATA;
 	vbox charges / category=sex;
@@ -65,7 +88,7 @@ proc sgplot data=MABIBLIO.DATA;
 	TITLE 'Boite a moustache des charges en fonction du sexe';
 run;
 
-/*........*/
+/* Boite à moustache */
 
 PROC SGPANEL  DATA=MABIBLIO.DATA;
 PANELBY sex;
@@ -73,7 +96,8 @@ PANELBY sex;
   TITLE 'Boite a moustache des charges en fonction du statut fumeur';
 RUN;
 
-/*........*/
+/* Graphique bulle */
+
 proc sgplot data=MABIBLIO.DATA;
 	bubble x=region y=charges size=age/ group=sex bradiusmin=7 bradiusmax=14;
 	xaxis grid;
@@ -81,7 +105,7 @@ proc sgplot data=MABIBLIO.DATA;
 	TITLE 'Graphe des charges en fonction des regions';
 run;
 
-/*........*/
+/* Graphique bulle */
 
 proc sgplot data=MABIBLIO.DATA;
 	bubble x=smoker y=charges size=age/ group=sex bradiusmin=7 bradiusmax=14;
@@ -90,20 +114,23 @@ proc sgplot data=MABIBLIO.DATA;
 	TITLE 'Graphe des charges en fonction du statut fumeur';
 run;
 
-/*........*/
+/* Barplots */
 
 PROC SGPLOT DATA = MABIBLIO.DATA;
  VBAR smoker / GROUP = sex GROUPDISPLAY = CLUSTER;
 TITLE 'Proportion des fumeurs en fonction du sexe';
 RUN;
+/*............................................................................*/
 
-/*.......Pré-Traitement............................................*/
 
 
-/* conversion des variables sex,smoker et region en variables quantitatives*/
+/*------------------------------- PRE-TRAITEMENT -----------------------------*/
+
+/* conversion des variables sex, smoker et region en variables quantitatives */
+
 data MABIBLIO.DATA;
 set MABIBLIO.DATA;
-/* use IF-THEN logic to recode gender */
+/* use IF-THEN logic to recode sex */
 length sex_Recode  8;
 format sex_Recode BEST12.;
 informat sex_Recode BEST32.;
@@ -113,7 +140,6 @@ else sex_Recode = ".";
 run;
 
 /*........*/
-
 
 data MABIBLIO.DATA;
 set MABIBLIO.DATA;
@@ -125,6 +151,7 @@ if      smoker="no" then smoker_Recode = 0;
 else if smoker="yes" then smoker_Recode = 1;
 else smoker_Recode = ".";
 run;
+
 /*........*/
 
 data MABIBLIO.DATA;
@@ -140,47 +167,62 @@ else if region="northeast" then region_Recode = 3;
 else region_Recode = ".";
 run;
 
-/*Type*/
+/* Vérification du type des variables */
 
 proc contents data=MABIBLIO.DATA
              out=mabiblio.contenu;
 RUN ;
 
-/*Correlogram*/
+/* Corrélogramme */
 
-proc corr data=MABIBLIO.data plots=matrix(histogram);
+proc corr data=MABIBLIO.valid plots=matrix(histogram);
 run;
 
-/*On fixe un generateur aleatoire */
 
+/* Divisions des données en train-set et validation-set aléatoirement */
+/* train-set = 70% et validation-set = 30 % */
 
-/*diviser les données en plusieurs sous-ensembles aléatoires avec une proportion donnée*/
+/* On fixe le generateur aleatoire avec la fonction "seed" */
 
 proc surveyselect data=MABIBLIO.DATA out=BIBLIO method=srs seed=1953 samprate=.7 outall noprint;
 run; 
 
-/*cette étape crée une nouvelle variable nommée "Sélectionné" qui peut être référencée plus tard*/
+/* Cette étape crée une nouvelle variable nommée "Sélectionné" qui peut être référencée plus tard */
+
+/*train set */
 data MABIBLIO.train;
 set BIBLIO;
 if selected = 1;
 drop selected;
 run;
 
+Title 'Resumé train set';
+PROC MEANS data=MABIBLIO.valid;
+RUN;
+
+/*train set */
 data MABIBLIO.valid;
 set BIBLIO;
 if selected = 0;
 drop selected;
 run;
 
+Title 'Resumé validation set';
+PROC MEANS data=MABIBLIO.valid;
+RUN;
+/*............................................................................*/
 
-/*Regression lineaire multiple suivit d'une selection de variables*/
 
-/*Macro-programme pour la regression lineaire multiple avec toutes les variables*/
+
+/* --------- REGRESSION LINEAIRE MULTIPLE ET SELECTION DE VARIABLES --------- */
+
+/* Macro-programme pour la régression linéaire multiple avec toutes les variables */
 
 %regressionL(table=MABIBLIO.train,variables=age bmi children smoker_Recode sex_Recode region_Recode);
 
 
-/*Selection de variables*/
+/* Selection de variables */
+
 proc glmselect data=MABIBLIO.train outdesign(addinputvars)=Work.reg_design 
 		plots=(criterionpanel);
 	model charges=age bmi children smoker_Recode sex_Recode region_Recode / 
@@ -189,10 +231,13 @@ proc glmselect data=MABIBLIO.train outdesign(addinputvars)=Work.reg_design
    (select=aic);
 run;
 
-/*Macro-programme pour la regression lineaire multiple avec variables selectionnées*/
+
+/*Macro-programme pour la regression lineaire multiple avec variables selectionnées */
 
 %regressionL(table=MABIBLIO.train,variables=age bmi children smoker_Recode region_Recode);
-/*Model de regression predictif avec valid-set */
+
+
+/* Modèle de régression prédictif avec valid-set */
 
 proc glmselect data=MABIBLIO.valid plots=(criterionpanel);
 	class region smoker / param=glm;
@@ -202,23 +247,32 @@ proc glmselect data=MABIBLIO.valid plots=(criterionpanel);
 	score out=MABIBLIO.scorev predicted residual;
 run;
 
-/* Recuperation de la table de prediction */
+
+/* Recuperation de la table de prédiction */
 
 data MABIBLIO.prediction;
 set mabiblio.scorev (keep=region smoker age bmi p_charges );
 run;
 
+/* Calcul de RMSE */
+
 proc sql;
-select sqrt(mean((charges-p_charges)**2)) as RMSE from mabiblio.score;
+select sqrt(mean((charges-p_charges)**2)) as RMSE from mabiblio.scorev;
 quit;
 
-/* Affichage de la table prediction */
+
+/* Affichage de la table prédiction */
+
 proc print data=mabiblio.prediction;
 run;
-/* acp avec princomp pour afficher le graphe des individus */
+
+/* ACP avec princomp pour afficher le graphe des individus */
+
 proc princomp data=MABIBLIO.DATA plots(only ncomp=2)=(scree score) 
 		out=MABIBLIO.PRINCOMP_SCORES outstat=MABIBLIO.PRINCOMP_STATS;
 	var age bmi children charges sex_Recode smoker_Recode region_Recode;
 	id region charges;
 run;
 
+/* --------------------------------- FIN-------------------------------------- */
+/* ___________________________________________________________________________ */
